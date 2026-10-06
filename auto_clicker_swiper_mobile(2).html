@@ -1,0 +1,712 @@
+<!DOCTYPE html>
+<html lang="ja" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>スマホ対応フローティング・オートクリッカー＆スワイプ</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: manipulation;
+            overscroll-behavior: none;
+        }
+        @keyframes ripple {
+            0% { transform: scale(0.8); opacity: 1; }
+            100% { transform: scale(2.4); opacity: 0; }
+        }
+        .animate-ripple {
+            animation: ripple 0.5s cubic-bezier(0, 0.2, 0.8, 1) forwards;
+        }
+        @keyframes swipeIndicator {
+            0% { transform: translateY(0px); opacity: 1; }
+            100% { transform: translateY(-50px); opacity: 0; }
+        }
+        .animate-swipe {
+            animation: swipeIndicator 0.7s ease-out forwards;
+        }
+        #floating-panel {
+            touch-action: none;
+        }
+    
+        /* ===== Mobile optimization ===== */
+        html, body {
+            width: 100%;
+            min-height: 100%;
+            overflow: hidden;
+            overscroll-behavior: none;
+        }
+
+        body {
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        button, input, #floating-header {
+            -webkit-touch-callout: none;
+        }
+
+        button {
+            min-height: 44px;
+        }
+
+        input[type="range"] {
+            height: 36px;
+            min-height: 36px;
+            touch-action: pan-x;
+        }
+
+        @media (max-width: 767px) {
+            header {
+                padding: 10px 12px !important;
+            }
+
+            header h1 {
+                font-size: 13px !important;
+            }
+
+            header p {
+                font-size: 9px !important;
+            }
+
+            header button {
+                min-height: 40px;
+            }
+
+            main {
+                padding: 8px !important;
+                gap: 8px !important;
+                height: calc(100dvh - 62px);
+                min-height: 0;
+            }
+
+            main > section {
+                min-height: 0;
+                padding: 10px !important;
+                border-radius: 20px !important;
+            }
+
+            /* On phones, keep controls below the simulation area */
+            main > aside {
+                position: absolute;
+                left: 8px;
+                right: 8px;
+                bottom: 8px;
+                width: auto !important;
+                max-height: 42dvh;
+                z-index: 45;
+                border-radius: 20px !important;
+                padding: 10px !important;
+                gap: 10px !important;
+            }
+
+            #view-mode-click {
+                min-height: 0;
+            }
+
+            #tap-target-btn {
+                width: min(58vw, 220px) !important;
+                height: min(58vw, 220px) !important;
+                min-height: 0 !important;
+            }
+
+            #main-score-display {
+                font-size: clamp(38px, 12vw, 58px) !important;
+            }
+
+            #floating-panel {
+                left: 8px !important;
+                right: 8px !important;
+                bottom: 8px !important;
+                width: auto !important;
+                max-width: none !important;
+                padding: 10px !important;
+                border-radius: 18px !important;
+                z-index: 50;
+            }
+
+            #floating-header {
+                min-height: 40px;
+            }
+
+            #floating-body button {
+                min-height: 46px;
+            }
+
+            /* Prevent the two control panels from covering the main target.
+               The floating panel is the primary mobile controller. */
+            main > aside {
+                display: none !important;
+            }
+
+            #view-mode-feed {
+                padding-bottom: 90px;
+            }
+
+            #view-mode-feed > div {
+                min-height: 44px;
+            }
+
+            #view-click-btn,
+            #view-feed-btn {
+                min-height: 40px;
+                padding: 8px 10px !important;
+            }
+        }
+
+        @media (max-width: 380px) {
+            header .space-x-2 {
+                gap: 4px !important;
+            }
+
+            #toggle-overlay-btn span {
+                display: none;
+            }
+
+            #toggle-overlay-btn {
+                padding: 8px !important;
+            }
+
+            #floating-panel {
+                font-size: 11px;
+            }
+        }
+
+        @media (orientation: landscape) and (max-width: 900px) {
+            main {
+                height: calc(100dvh - 58px);
+            }
+
+            #tap-target-btn {
+                width: min(32vh, 190px) !important;
+                height: min(32vh, 190px) !important;
+            }
+
+            #floating-panel {
+                max-height: 48dvh;
+            }
+        }
+
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 h-full flex flex-col overflow-hidden" style="padding-bottom: env(safe-area-inset-bottom);">
+
+    <header class="bg-slate-900/90 backdrop-blur border-b border-slate-800 px-4 py-3 flex items-center justify-between shrink-0 shadow-lg z-30">
+        <div class="flex items-center space-x-2.5">
+            <div class="bg-indigo-600 text-white p-2 rounded-xl shadow-inner shadow-indigo-400/30">
+                <i class="fa-solid fa-layer-group text-lg"></i>
+            </div>
+            <div>
+                <h1 class="text-sm sm:text-base font-bold bg-gradient-to-r from-indigo-400 via-cyan-300 to-emerald-300 bg-clip-text text-transparent">Floating Clicker & Swiper Pro</h1>
+                <p class="text-[10px] sm:text-xs text-slate-400">スマホ対応・クリック＋スワイプ重ね掛けアシスタント</p>
+            </div>
+        </div>
+        <div class="flex items-center space-x-2">
+            <button onclick="toggleOverlayVisibility()" id="toggle-overlay-btn" class="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center space-x-1.5 transition cursor-pointer border border-slate-700">
+                <i class="fa-solid fa-clone text-indigo-400"></i>
+                <span id="overlay-btn-text">窓: 表示中</span>
+            </button>
+            <button onclick="resetAllData()" class="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs transition cursor-pointer" title="リセット">
+                <i class="fa-solid fa-rotate-right"></i>
+            </button>
+        </div>
+    </header>
+
+    <main class="flex-1 flex flex-col md:flex-row overflow-hidden p-3 sm:p-5 gap-4 max-w-7xl mx-auto w-full relative">
+        
+        <!-- Left Section: Target Simulation Area -->
+        <section class="flex-1 bg-slate-900/60 border border-slate-800 rounded-3xl relative overflow-hidden flex flex-col shadow-2xl p-4">
+            
+            <!-- View Mode Switcher -->
+            <div class="flex items-center justify-between pb-3 border-b border-slate-800 mb-4 shrink-0">
+                <div class="flex items-center space-x-2 text-xs text-slate-300">
+                    <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                    <span class="font-bold">シミュレーションビュー</span>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <button onclick="switchViewMode('click')" id="view-click-btn" class="px-3 py-1 rounded-lg bg-indigo-600 text-white text-xs font-bold transition cursor-pointer">クリッカー領域</button>
+                    <button onclick="switchViewMode('feed')" id="view-feed-btn" class="px-3 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs transition cursor-pointer">スワイプ用フィード</button>
+                </div>
+            </div>
+
+            <!-- View A: Click Arena -->
+            <div id="view-mode-click" class="flex-1 flex flex-col items-center justify-center relative overflow-hidden">
+                <div id="floaters-container" class="absolute inset-0 pointer-events-none"></div>
+
+                <div class="text-center z-10 space-y-4">
+                    <div>
+                        <span class="text-xs text-slate-400 uppercase tracking-widest font-semibold">タップターゲットエリア</span>
+                        <h2 id="main-score-display" class="text-4xl sm:text-6xl font-black text-amber-400 tracking-tight mt-1">0</h2>
+                        <p class="text-xs text-slate-400 mt-1">
+                            CPS (秒間クリック): <span id="main-cps-display" class="text-cyan-300 font-bold">0.0</span> | 
+                            SPS (秒間スワイプ): <span id="main-sps-display" class="text-indigo-300 font-bold">0.0</span>
+                        </p>
+                    </div>
+
+                    <!-- Big Interactive Touch Button -->
+                    <button id="tap-target-btn" class="w-40 h-40 sm:w-48 sm:h-48 rounded-full bg-gradient-to-tr from-indigo-600 via-purple-600 to-cyan-400 p-1.5 shadow-2xl shadow-indigo-500/30 transform active:scale-95 transition cursor-pointer focus:outline-none mx-auto">
+                        <div class="w-full h-full bg-slate-950 rounded-full flex flex-col items-center justify-center relative overflow-hidden group">
+                            <i class="fa-solid fa-fingerprint text-4xl text-cyan-400 mb-2"></i>
+                            <span class="font-bold text-xs text-slate-100">タップして獲得</span>
+                            <span id="power-per-click-label" class="text-[10px] text-cyan-300 mt-1">+1.0 Pts</span>
+                        </div>
+                    </button>
+                </div>
+            </div>
+
+            <!-- View B: Swipeable Feed Area -->
+            <div id="view-mode-feed" class="flex-1 hidden flex-col overflow-y-auto space-y-3 pr-1">
+                <div class="text-center py-2 text-[11px] text-slate-500">--- 下方向への自動スワイプテスト用フィード ---</div>
+                <div id="feed-items-list" class="space-y-3 pb-10">
+                    <!-- Populated dynamically -->
+                </div>
+            </div>
+
+            <!-- Floating Control Widget (Movable & Mobile Friendly) -->
+            <div id="floating-panel" class="absolute bottom-4 left-4 right-4 sm:left-auto sm:right-4 sm:w-72 bg-slate-950/95 backdrop-blur-md border border-slate-700/80 p-3.5 rounded-2xl shadow-2xl flex flex-col space-y-2.5 z-40 transition-shadow">
+                <!-- Widget Header / Drag Handle -->
+                <div id="floating-header" class="flex items-center justify-between pb-2 border-b border-slate-800 cursor-grab active:cursor-grabbing">
+                    <div class="flex items-center space-x-2">
+                        <i class="fa-solid fa-arrows-up-down-left-right text-indigo-400 text-xs"></i>
+                        <span class="text-xs font-bold text-slate-200">フローティング・コントローラー</span>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <button onclick="toggleFloatingMinimize()" class="text-slate-400 hover:text-slate-200 text-xs cursor-pointer"><i id="minimize-icon" class="fa-solid fa-minus"></i></button>
+                    </div>
+                </div>
+
+                <!-- Widget Body (Collapsible) -->
+                <div id="floating-body" class="space-y-2.5">
+                    <div class="grid grid-cols-2 gap-2">
+                        <!-- Auto Clicker Toggle -->
+                        <button onclick="toggleAutoClicker()" id="widget-click-toggle" class="py-2 px-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[11px] flex items-center justify-center space-x-1 transition cursor-pointer shadow-md">
+                            <i id="widget-click-icon" class="fa-solid fa-play"></i>
+                            <span id="widget-click-text">連打: 停</span>
+                        </button>
+                        <!-- Auto Swiper Toggle -->
+                        <button onclick="toggleAutoSwiper()" id="widget-swipe-toggle" class="py-2 px-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-[11px] flex items-center justify-center space-x-1 transition cursor-pointer border border-slate-700">
+                            <i id="widget-swipe-icon" class="fa-solid fa-play"></i>
+                            <span id="widget-swipe-text">スワイプ: 停</span>
+                        </button>
+                    </div>
+
+                    <!-- Live CPS / SPS Stats Display -->
+                    <div class="grid grid-cols-2 gap-2 pt-1">
+                        <div class="bg-slate-900 border border-slate-800 rounded-xl px-2.5 py-1.5 flex flex-col items-center justify-center">
+                            <span class="text-[9px] text-slate-400">現在 CPS (秒速)</span>
+                            <span id="widget-cps-val" class="text-xs font-bold text-cyan-300">5.0</span>
+                        </div>
+                        <div class="bg-slate-900 border border-slate-800 rounded-xl px-2.5 py-1.5 flex flex-col items-center justify-center">
+                            <span class="text-[9px] text-slate-400">現在 SPS (秒速)</span>
+                            <span id="widget-sps-val" class="text-xs font-bold text-indigo-300">0.33</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </section>
+
+        <!-- Right/Bottom Panel: Upgrades & Advanced Speed Controls -->
+        <aside class="w-full md:w-80 bg-slate-900/60 border border-slate-800 rounded-3xl p-4 flex flex-col gap-4 shadow-xl backdrop-blur shrink-0 overflow-y-auto">
+            
+            <!-- Speed Control Sliders Section -->
+            <div class="space-y-3 pb-3 border-b border-slate-800">
+                <h3 class="font-bold text-xs flex items-center text-slate-200 uppercase tracking-wider">
+                    <i class="fa-solid fa-sliders text-indigo-400 mr-2"></i> 速度・秒速の設定
+                </h3>
+                
+                <!-- Click Speed Slider -->
+                <div class="space-y-1">
+                    <div class="flex justify-between text-xs text-slate-400">
+                        <span>クリック速度 (CPS):</span>
+                        <span id="cps-slider-label" class="font-bold text-amber-300">5 CPS</span>
+                    </div>
+                    <input type="range" id="cps-range" min="1" max="50" value="5" class="w-full accent-amber-500 cursor-pointer">
+                </div>
+
+                <!-- Swipe Speed / Interval Slider -->
+                <div class="space-y-1">
+                    <div class="flex justify-between text-xs text-slate-400">
+                        <span>スワイプ間隔 (秒):</span>
+                        <span id="swipe-slider-label" class="font-bold text-indigo-300">3.0 秒</span>
+                    </div>
+                    <input type="range" id="swipe-range" min="0.5" max="5" step="0.5" value="3.0" class="w-full accent-indigo-500 cursor-pointer">
+                </div>
+            </div>
+
+            <!-- Upgrades List Header -->
+            <div class="flex items-center justify-between pb-2 shrink-0">
+                <h3 class="font-bold text-sm flex items-center text-slate-200">
+                    <i class="fa-solid fa-rocket text-indigo-400 mr-2"></i> 重ね掛けショップ
+                </h3>
+            </div>
+
+            <!-- Upgrades List Container -->
+            <div id="upgrades-container" class="space-y-2.5">
+                <!-- Dynamically populated by JS -->
+            </div>
+        </aside>
+
+    </main>
+
+    <script>
+        // Application State
+        let state = {
+            score: 0,
+            cps: 5,
+            sps: 0.33, // 1 swipe every 3 seconds
+            swipeInterval: 3.0,
+            multiplier: 1.0,
+            autoClickerActive: false,
+            autoSwiperActive: false,
+            overlayVisible: true,
+            isMinimized: false,
+            viewMode: 'click', // 'click' or 'feed'
+            upgrades: [
+                { id: 'worker', name: 'オートワーカー', desc: '毎秒自動でクリックを刻みます', cost: 15, cpsAdd: 1, count: 0, costMult: 1.15 },
+                { id: 'swiper_gen', name: 'オートスワイパー', desc: '自動でSNS/動画フィードをスワイプ', cost: 75, spsAdd: 0.2, count: 0, costMult: 1.2 },
+                { id: 'booster', name: '重ね掛けマルチプライヤー', desc: '全体の獲得効率を倍率重ね掛けします', cost: 150, multAdd: 0.25, count: 0, costMult: 1.25 },
+                { id: 'quantum', name: '量子パルス発生機', desc: '超高速な連打とスワイプ効率を発揮', cost: 1500, cpsAdd: 20, spsAdd: 1.0, multAdd: 0.8, count: 0, costMult: 1.5 }
+            ]
+        };
+
+        const mockFeedItems = [
+            { id: 1, title: "トレンド動画 #1: 最先端テクノロジー解説", author: "Tech Channel", likes: "1.2万" },
+            { id: 2, title: "ショート動画 #2: 30秒でわかる絶品時短レシピ", author: "Cooking Master", likes: "4.8万" },
+            { id: 3, title: "おもしろ映像 #3: 猫の可愛いリアクション集", author: "Animal World", likes: "9.5万" },
+            { id: 4, title: "ライフハック #4: 作業効率を3倍にするデスク周り", author: "Productivity JP", likes: "3.1万" }
+        ];
+
+        // UI References
+        const mainScoreDisplay = document.getElementById('main-score-display');
+        const mainCpsDisplay = document.getElementById('main-cps-display');
+        const mainSpsDisplay = document.getElementById('main-sps-display');
+        const powerPerClickLabel = document.getElementById('power-per-click-label');
+        const tapTargetBtn = document.getElementById('tap-target-btn');
+        const floatersContainer = document.getElementById('floaters-container');
+        const upgradesContainer = document.getElementById('upgrades-container');
+        const floatingPanel = document.getElementById('floating-panel');
+        const floatingHeader = document.getElementById('floating-header');
+        const floatingBody = document.getElementById('floating-body');
+        const minimizeIcon = document.getElementById('minimize-icon');
+        
+        const widgetClickToggle = document.getElementById('widget-click-toggle');
+        const widgetClickIcon = document.getElementById('widget-click-icon');
+        const widgetClickText = document.getElementById('widget-click-text');
+        const widgetSwipeToggle = document.getElementById('widget-swipe-toggle');
+        const widgetSwipeIcon = document.getElementById('widget-swipe-icon');
+        const widgetSwipeText = document.getElementById('widget-swipe-text');
+        
+        const widgetCpsVal = document.getElementById('widget-cps-val');
+        const widgetSpsVal = document.getElementById('widget-sps-val');
+        const cpsRange = document.getElementById('cps-range');
+        const cpsSliderLabel = document.getElementById('cps-slider-label');
+        const swipeRange = document.getElementById('swipe-range');
+        const swipeSliderLabel = document.getElementById('swipe-slider-label');
+        
+        const viewModeClick = document.getElementById('view-mode-click');
+        const viewModeFeed = document.getElementById('view-mode-feed');
+        const viewClickBtn = document.getElementById('view-click-btn');
+        const viewFeedBtn = document.getElementById('view-feed-btn');
+        const feedItemsList = document.getElementById('feed-items-list');
+
+        // Render feed items
+        function renderFeedItems() {
+            feedItemsList.innerHTML = '';
+            mockFeedItems.forEach((item) => {
+                const div = document.createElement('div');
+                div.className = 'bg-slate-950/60 border border-slate-800 p-3.5 rounded-2xl flex items-center justify-between';
+                div.innerHTML = `
+                    <div class="flex items-center space-x-3">
+                        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-purple-600 flex items-center justify-center font-bold text-white text-xs shrink-0">
+                            #${item.id}
+                        </div>
+                        <div>
+                            <h4 class="font-bold text-xs text-slate-200">${item.title}</h4>
+                            <p class="text-[10px] text-slate-400 mt-0.5">${item.author} • ❤️ ${item.likes}</p>
+                        </div>
+                    </div>
+                    <span class="text-[9px] bg-slate-900 border border-slate-700 text-slate-300 px-2 py-0.5 rounded-full">自動スワイプ対象</span>
+                `;
+                feedItemsList.appendChild(div);
+            });
+        }
+
+        function switchViewMode(mode) {
+            state.viewMode = mode;
+            if (mode === 'click') {
+                viewModeClick.classList.remove('hidden');
+                viewModeFeed.classList.add('hidden');
+                viewClickBtn.className = 'px-3 py-1 rounded-lg bg-indigo-600 text-white text-xs font-bold transition cursor-pointer';
+                viewFeedBtn.className = 'px-3 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs transition cursor-pointer';
+            } else {
+                viewModeClick.classList.add('hidden');
+                viewModeFeed.classList.remove('hidden');
+                viewFeedBtn.className = 'px-3 py-1 rounded-lg bg-indigo-600 text-white text-xs font-bold transition cursor-pointer';
+                viewClickBtn.className = 'px-3 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs transition cursor-pointer';
+            }
+        }
+
+        tapTargetBtn.addEventListener('pointerdown', (e) => {
+            e.preventDefault();
+            executeClick(e.clientX || window.innerWidth / 2, e.clientY || window.innerHeight / 2);
+        });
+
+        function executeClick(x, y) {
+            const power = calculateClickPower();
+            state.score += power;
+            createFloater(x, y, `+${formatNumber(power)}`);
+            updateUI();
+        }
+
+        function calculateMetrics() {
+            let baseCps = 0;
+            let baseSps = 0;
+            let mult = 1.0;
+            
+            state.upgrades.forEach(u => {
+                if (u.cpsAdd) baseCps += u.cpsAdd * u.count;
+                if (u.spsAdd) baseSps += u.spsAdd * u.count;
+                if (u.multAdd) mult += u.multAdd * u.count;
+            });
+            
+            state.multiplier = mult;
+            const sliderCps = parseFloat(cpsRange.value);
+            const sliderSwipeSec = parseFloat(swipeRange.value);
+            
+            state.cps = state.autoClickerActive ? Math.max(sliderCps, baseCps) : baseCps;
+            state.sps = state.autoSwiperActive ? (1 / sliderSwipeSec) + baseSps : baseSps;
+            
+            return {
+                effectiveCps: state.cps * mult,
+                effectiveSps: state.sps * mult
+            };
+        }
+
+        function calculateClickPower() {
+            let mult = 1.0;
+            state.upgrades.forEach(u => {
+                if (u.multAdd) mult += u.multAdd * u.count;
+            });
+            return 1 * mult;
+        }
+
+        function createFloater(x, y, text) {
+            const el = document.createElement('div');
+            el.className = 'absolute text-cyan-300 font-bold text-xs pointer-events-none animate-ripple z-50';
+            el.innerText = text;
+            const rect = floatersContainer.getBoundingClientRect();
+            el.style.left = `${(x - rect.left + (Math.random() - 0.5) * 40)}px`;
+            el.style.top = `${(y - rect.top + (Math.random() - 0.5) * 30)}px`;
+            floatersContainer.appendChild(el);
+            setTimeout(() => el.remove(), 500);
+        }
+
+        function triggerAutoSwipe() {
+            if (state.viewMode === 'feed') {
+                viewModeFeed.scrollBy({ top: 100, behavior: 'smooth' });
+                if (viewModeFeed.scrollTop + viewModeFeed.clientHeight >= viewModeFeed.scrollHeight - 10) {
+                    viewModeFeed.scrollTo({ top: 0, behavior: 'smooth' });
+                }
+            } else {
+                // Show floating swipe indicator in click mode
+                const el = document.createElement('div');
+                el.className = 'absolute text-indigo-300 font-bold text-xs pointer-events-none animate-swipe z-50';
+                el.innerHTML = '<i class="fa-solid fa-arrow-up"></i> 自動スワイプ';
+                el.style.left = `${window.innerWidth / 2 - 40}px`;
+                el.style.top = `${window.innerHeight / 2}px`;
+                document.body.appendChild(el);
+                setTimeout(() => el.remove(), 700);
+            }
+            state.score += 5 * state.multiplier;
+        }
+
+        function toggleAutoClicker() {
+            state.autoClickerActive = !state.autoClickerActive;
+            if (state.autoClickerActive) {
+                widgetClickToggle.className = 'py-2 px-2.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-bold text-[11px] flex items-center justify-center space-x-1 transition cursor-pointer shadow-md';
+                widgetClickIcon.className = 'fa-solid fa-pause';
+                widgetClickText.innerText = '連打: 稼働';
+            } else {
+                widgetClickToggle.className = 'py-2 px-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[11px] flex items-center justify-center space-x-1 transition cursor-pointer shadow-md';
+                widgetClickIcon.className = 'fa-solid fa-play';
+                widgetClickText.innerText = '連打: 停';
+            }
+        }
+
+        function toggleAutoSwiper() {
+            state.autoSwiperActive = !state.autoSwiperActive;
+            if (state.autoSwiperActive) {
+                widgetSwipeToggle.className = 'py-2 px-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-[11px] flex items-center justify-center space-x-1 transition cursor-pointer shadow-md';
+                widgetSwipeIcon.className = 'fa-solid fa-pause';
+                widgetSwipeText.innerText = 'スワイプ: 稼働';
+            } else {
+                widgetSwipeToggle.className = 'py-2 px-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-[11px] flex items-center justify-center space-x-1 transition cursor-pointer border border-slate-700';
+                widgetSwipeIcon.className = 'fa-solid fa-play';
+                widgetSwipeText.innerText = 'スワイプ: 停';
+            }
+        }
+
+        function toggleOverlayVisibility() {
+            state.overlayVisible = !state.overlayVisible;
+            floatingPanel.style.display = state.overlayVisible ? 'flex' : 'none';
+            document.getElementById('overlay-btn-text').innerText = state.overlayVisible ? '窓: 表示中' : '窓: 非表示';
+        }
+
+        function toggleFloatingMinimize() {
+            state.isMinimized = !state.isMinimized;
+            floatingBody.style.display = state.isMinimized ? 'none' : 'block';
+            minimizeIcon.className = state.isMinimized ? 'fa-solid fa-plus' : 'fa-solid fa-minus';
+        }
+
+        // Widget Dragging
+        let isDragging = false;
+        let dragStartX = 0, dragStartY = 0;
+        let panelX = 0, panelY = 0;
+
+        floatingHeader.addEventListener('pointerdown', (e) => {
+            isDragging = true;
+            dragStartX = e.clientX - panelX;
+            dragStartY = e.clientY - panelY;
+            floatingHeader.setPointerCapture(e.pointerId);
+        });
+
+        floatingHeader.addEventListener('pointermove', (e) => {
+            if (!isDragging) return;
+            panelX = e.clientX - dragStartX;
+            panelY = e.clientY - dragStartY;
+            floatingPanel.style.transform = `translate(${panelX}px, ${panelY}px)`;
+        });
+
+        floatingHeader.addEventListener('pointerup', (e) => {
+            isDragging = false;
+            floatingHeader.releasePointerCapture(e.pointerId);
+        });
+
+        cpsRange.addEventListener('input', () => {
+            cpsSliderLabel.innerText = `${cpsRange.value} CPS`;
+        });
+
+        swipeRange.addEventListener('input', () => {
+            swipeSliderLabel.innerText = `${swipeRange.value} 秒`;
+            state.swipeInterval = parseFloat(swipeRange.value);
+        });
+
+        function buyUpgrade(id) {
+            const upg = state.upgrades.find(u => u.id === id);
+            if (!upg) return;
+            const cost = Math.floor(upg.cost);
+            if (state.score >= cost) {
+                state.score -= cost;
+                upg.count++;
+                upg.cost *= upg.costMult;
+                renderUpgrades();
+                updateUI();
+            }
+        }
+
+        function renderUpgrades() {
+            upgradesContainer.innerHTML = '';
+            state.upgrades.forEach(u => {
+                const canBuy = state.score >= Math.floor(u.cost);
+                const card = document.createElement('div');
+                card.className = `p-3 rounded-2xl border transition flex items-center justify-between ${canBuy ? 'bg-slate-800/60 border-slate-700 hover:border-indigo-500/50' : 'bg-slate-950/40 border-slate-900 opacity-60'}`;
+                card.innerHTML = `
+                    <div class="pr-2 min-w-0">
+                        <div class="flex items-center space-x-2">
+                            <h4 class="font-bold text-xs text-slate-200 truncate">${u.name}</h4>
+                            <span class="text-[9px] bg-indigo-500/20 text-indigo-300 px-2 py-0.5 rounded-full font-semibold shrink-0">Lv.${u.count}</span>
+                        </div>
+                        <p class="text-[10px] text-slate-400 mt-0.5 line-clamp-1">${u.desc}</p>
+                        <p class="text-xs font-medium text-amber-400 mt-1"><i class="fa-solid fa-coins mr-1"></i>${formatNumber(Math.floor(u.cost))} Pts</p>
+                    </div>
+                    <button onclick="buyUpgrade('${u.id}')" ${!canBuy ? 'disabled' : ''} class="px-3 py-1.5 rounded-xl text-xs font-bold transition shrink-0 ${canBuy ? 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-md cursor-pointer' : 'bg-slate-800 text-slate-500 cursor-not-allowed'}">
+                        購入
+                    </button>
+                `;
+                upgradesContainer.appendChild(card);
+            });
+        }
+
+        function resetAllData() {
+            if (confirm('スコアとアップグレードをすべてリセットしますか？')) {
+                state.score = 0;
+                state.autoClickerActive = false;
+                state.autoSwiperActive = false;
+                state.upgrades.forEach(u => {
+                    u.count = 0;
+                    if (u.id === 'worker') u.cost = 15;
+                    if (u.id === 'swiper_gen') u.cost = 75;
+                    if (u.id === 'booster') u.cost = 150;
+                    if (u.id === 'quantum') u.cost = 1500;
+                });
+                widgetClickToggle.className = 'py-2 px-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[11px] flex items-center justify-center space-x-1 transition cursor-pointer shadow-md';
+                widgetClickIcon.className = 'fa-solid fa-play';
+                widgetClickText.innerText = '連打: 停';
+                widgetSwipeToggle.className = 'py-2 px-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-[11px] flex items-center justify-center space-x-1 transition cursor-pointer border border-slate-700';
+                widgetSwipeIcon.className = 'fa-solid fa-play';
+                widgetSwipeText.innerText = 'スワイプ: 停';
+                renderUpgrades();
+                updateUI();
+            }
+        }
+
+        function formatNumber(num) {
+            if (num >= 1e12) return (num / 1e12).toFixed(2) + 'T';
+            if (num >= 1e9) return (num / 1e9).toFixed(2) + 'B';
+            if (num >= 1e6) return (num / 1e6).toFixed(2) + 'M';
+            if (num >= 1e3) return (num / 1e3).toFixed(1) + 'k';
+            return Math.floor(num).toLocaleString();
+        }
+
+        function updateUI() {
+            const metrics = calculateMetrics();
+            mainScoreDisplay.innerText = formatNumber(state.score);
+            mainCpsDisplay.innerText = metrics.effectiveCps.toFixed(1);
+            mainSpsDisplay.innerText = metrics.effectiveSps.toFixed(2);
+            widgetCpsVal.innerText = metrics.effectiveCps.toFixed(1);
+            widgetSpsVal.innerText = metrics.effectiveSps.toFixed(2);
+            powerPerClickLabel.innerText = `+${formatNumber(calculateClickPower())} Pts`;
+        }
+
+        // Main Simulation Loop
+        let lastTime = performance.now();
+        let swipeTimer = 0;
+
+        function gameLoop(currentTime) {
+            const delta = (currentTime - lastTime) / 1000;
+            lastTime = currentTime;
+
+            const metrics = calculateMetrics();
+
+            if (state.autoClickerActive && delta > 0 && delta < 1) {
+                const earned = metrics.effectiveCps * delta * calculateClickPower();
+                state.score += earned;
+            }
+
+            if (state.autoSwiperActive && delta > 0 && delta < 1) {
+                swipeTimer += delta;
+                const interval = Math.max(0.2, parseFloat(swipeRange.value) / (1 + (metrics.effectiveSps * 0.1)));
+                if (swipeTimer >= interval) {
+                    triggerAutoSwipe();
+                    swipeTimer = 0;
+                }
+            }
+
+            updateUI();
+            requestAnimationFrame(gameLoop);
+        }
+
+        // Initialize on load
+        window.onload = function() {
+            renderFeedItems();
+            renderUpgrades();
+            requestAnimationFrame(gameLoop);
+            setInterval(renderUpgrades, 400);
+        };
+    </script>
+</body>
+</html>
